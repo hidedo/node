@@ -5,10 +5,15 @@ const multer = require('multer');
 const app = express();
 const fs = require('fs');
 const sharp = require('sharp');
-app.listen(3002,()=>console.log('fu1wu'))
+
+
+app.listen(3002,()=>console.log('running...'));
+
 
 app.use(cors());
-app.use(multer({dest:'tmp/'}).array('file'));
+app.use(multer({dest:'tmp/'}).array('dragger',10))
+
+app.use('/public', express.static('public'));
 
 const deleteFiles = ()=> {
     fs.readdir('tmp/',(err,files)=>{
@@ -27,44 +32,73 @@ const deleteFiles = ()=> {
     })
 
 }
+
 app.post('/upload', (req, res)=> {
 
+    deleteFiles();
 
+    console.log(req.body['radio-group'],req.files);
 
-    console.log(req.files);
-    let des_file = `${__dirname}/images/${req.files[0].originalname}`;
+    let dir = '';
+    if(req.body['radio-group']==1){
+        dir ='index-pic'
+    }else if(req.body['radio-group']==2){
+        dir = 'project-pic'
+    }else if(req.body['radio-group']==3){
+        dir = 'double-pic'
+    }else if(req.body['radio-group']==4){
+        dir = 'diary-pic'
+    }
+    let response = {};
 
-    fs.readFile(req.files[0].path,(err,data)=>{
-        let response = {};
-        if(err){
+    for (let i=0 ;i<=req.files.length;i++){
+        if(i==req.files.length){
             response = {
-                name: req.files[0].originalname,
-                status: "read fail",
-                message:err,
+
+                status: "success",
+                message:'all done',
             }
-            res.json(response)
-            return
+
+            return res.json(response);
+            break;
         }
-        sharp(data)
-            .jpeg({
-                    quality:80,
-                    chromaSubsampling: '4:4:4',
-                    progressive:true,
+        let des_file = `${__dirname}/public/image/${dir}/${req.files[i].originalname}`;
+
+
+        fs.readFile(req.files[i].path,(err,data)=>{
+
+            if(err){
+                response = {
+                    name: req.files[i].originalname,
+                    status: "read fail",
+                    message:err,
                 }
 
-            )
-            .toBuffer()
-            .then(data=>{
-                fs.writeFile(des_file,data,(err)=>{
-                    if (err) {
-                        console.log(err);
-                        response = {
-                            name: req.files[0].originalname,
-                            status: "write fail",
-                            message:err,
-                        }
+                return res.json(response)
 
-                    } else {
+            }
+            sharp(data)
+                .jpeg({
+                        quality:80,
+                        chromaSubsampling: '4:4:4',
+                        progressive:true,
+                    }
+
+                )
+                .toBuffer()
+                .then(data=>{
+                    fs.writeFile(des_file,data,(err)=>{
+                        if (err) {
+
+                            response = {
+                                name: req.files[i].originalname,
+                                status: "write fail",
+                                message:err,
+                            }
+
+                            return res.json(response)
+
+                        }
                         sharp(data)
                             .jpeg({
                                     quality:100,
@@ -74,52 +108,105 @@ app.post('/upload', (req, res)=> {
 
                             )
                             .resize(500)
-                            .toFile(`images/m-${req.files[0].originalname}`)
-                            .then(()=>{
-                                response = {
-                                    name: req.files[0].originalname,
-                                    status: "success",
-                                }
-                                res.json(response)
-                            })
-                            .catch(err=>{
-                                response = {
-                                    name: req.files[0].originalname,
-                                    status: "sharp1 fail",
-                                    message:err,
-                                }
-                                res.json(response)
+                            .toFile(`public/image/m-${dir}/${req.files[i].originalname}`,
+                                (err,info)=>{
+                                    if(err){
+                                        response = {
+                                            name: req.files[i].originalname,
+                                            status: "sharp1 fail",
+                                            message:err,
+                                        }
 
+                                        return  res.json(response)
+                                    }
 
-                            })
-
-                        deleteFiles();
-                    };
+                                })
 
 
 
 
-                });
 
-            })
-            .catch(err=>{
+
+
+
+                    });
+
+                })
+                .catch(err=>{
+                    response = {
+                        name: req.files[i].originalname,
+                        status: "sharp2 fail",
+                        message:err,
+                    }
+
+                    return  res.json(response)
+
+
+                })
+
+
+
+
+        });
+
+
+    }
+
+})
+app.post('/uploadFile', (req, res)=> {
+    deleteFiles();
+
+    let response = {};
+
+    for (let i in req.files){
+        let des_file = `${__dirname}/public/${req.files[i].originalname}`;
+
+        fs.readFile(req.files[i].path,(err,data)=>{
+
+            if(err){
                 response = {
-                    name: req.files[0].originalname,
-                    status: "sharp2 fail",
+                    name: req.files[i].originalname,
+                    status: "read fail",
                     message:err,
                 }
-                res.json(response)
+
+                return res.json(response)
+
+            }
+            fs.writeFile(des_file,data,(err)=>{
+                if (err) {
+
+                    response = {
+                        name: req.files[i].originalname,
+                        status: "write fail",
+                        message:err,
+                    }
+
+                    return res.json(response)
+
+                }
+                response = {
+                    name: req.files[i].originalname,
+                    status: "success",
+                    message:'File uploaded successfully',
+                }
+
+                return res.json(response)
 
 
-            })
+
+            });
 
 
 
 
-    });
+
+        });
 
 
-});
+    }
+
+})
 
 
 
